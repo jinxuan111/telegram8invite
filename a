@@ -1,0 +1,61 @@
+import os
+import csv
+from telethon.sync import TelegramClient
+
+# 读取 accounts 文件夹下的所有 .session 文件
+accounts = [f for f in os.listdir("accounts") if f.endswith(".session")]
+
+print("可用账号：")
+for i, acc in enumerate(accounts, start=1):
+    print(f"[{i}] {acc}")
+print("[0] 使用所有账号")
+
+choice = int(input("请选择要使用的账号编号: "))
+if choice == 0:
+    selected_accounts = accounts  # 全部账号
+else:
+    selected_accounts = [accounts[choice - 1]]  # 指定账号
+
+print("✅ 你选择的账号:")
+for acc in selected_accounts:
+    print(f"  - {acc}")
+
+# 载入已邀请过的号码（避免重复）
+invited_file = "invited.csv"
+invited_numbers = set()
+if os.path.exists(invited_file):
+    with open(invited_file, "r", encoding="utf-8") as f:
+        reader = csv.reader(f)
+        for row in reader:
+            if row:
+                invited_numbers.add(row[0])
+
+# 假设 phone_numbers.csv 里有要拉的号码
+with open("phones.csv", "r", encoding="utf-8") as f:
+    reader = csv.reader(f)
+    phone_numbers = [row[0] for row in reader if row]
+
+# 遍历账号
+for acc in selected_accounts:
+    print(f"[{acc}] 登录成功，准备拉人")
+    client = TelegramClient(f"accounts/{acc.replace('.session','')}", api_id=12345, api_hash="xxxxxx")
+    client.start()
+
+    for phone in phone_numbers:
+        if phone in invited_numbers:
+            print(f"[{acc}] ⚠️ 跳过已邀请: {phone}")
+            continue
+
+        try:
+            # 假设 group_entity 是群对象（你之前代码里应该有获取）
+            client(InviteToChannelRequest(group_entity, [phone]))
+            print(f"[{acc}] ✅ 已邀请: {phone}")
+
+            with open(invited_file, "a", encoding="utf-8", newline="") as f:
+                writer = csv.writer(f)
+                writer.writerow([phone])
+
+        except Exception as e:
+            print(f"[{acc}] ❌ 拉人失败 {phone}: {e}")
+
+    client.disconnect()
